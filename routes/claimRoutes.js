@@ -14,4 +14,19 @@ router.post(
   claimController.createClaim
 );
 
+// Update claim status (Super Admin and Admin only)
+router.put(
+  "/:id/status",
+  authorize("Super Admin", "Admin"),
+  claimController.updateClaimStatus
+);
+
+// Update claim details (Super Admin and Admin only, documents optional)
+router.put(
+  "/:id",
+  authorize("Super Admin", "Admin"),
+  uploadMiddleware,
+  claimController.updateClaimDetails
+);
+
 module.exports = router;
