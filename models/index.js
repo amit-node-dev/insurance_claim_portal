@@ -1,11 +1,24 @@
-const { Sequelize } = require("sequelize");
-const dbConfig = require("../config/config.json");
+'use strict';
 
-const sequelize = new Sequelize(dbConfig.development.database, dbConfig.development.username, dbConfig.development.password, {
-  host: dbConfig.development.host,
-  dialect: dbConfig.development.dialect,
-  pool: { ...dbConfig.development.pool },
-});
+const { Sequelize } = require("sequelize");
+require('dotenv').config();
+
+const sequelize = new Sequelize(
+  process.env.MYSQLDATABASE,
+  process.env.MYSQLUSER,
+  process.env.MYSQLPASSWORD,
+  {
+    host: process.env.MYSQLHOST,
+    port: process.env.MYSQLPORT,
+    dialect: process.env.MYSQLDAILET,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000,
+    },
+  }
+);
 
 const db = {};
 
