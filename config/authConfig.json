@@ -1,0 +1,6 @@
+{
+  "secret": "insurance_secret_key",
+  "accessTokenExpiry": "24h",
+  "refreshTokenSecret": "insurance_refresh_secret_key",
+  "refreshTokenExpiry": "30d"
+}
