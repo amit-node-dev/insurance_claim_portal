@@ -36,6 +36,15 @@ module.exports = {
         },
         onDelete: 'RESTRICT',
       },
+      tpaId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'TPAs',
+          key: 'id',
+        },
+        onDelete: 'RESTRICT',
+      },
       status: {
         type: Sequelize.ENUM(
           "Admitted",

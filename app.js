@@ -31,6 +31,7 @@ const publicRoutes = require('./routes/publicRoutes');
 const authRoutes = require('./routes/authRoutes');
 const hospitalRoutes = require('./routes/hospitalRoutes');
 const claimRoutes = require('./routes/claimRoutes');
+const tpaRoutes = require('./routes/tpaRoutes');
 
 // Public routes (no auth needed)
 app.use('/api/v1/public', publicRoutes);
@@ -41,6 +42,7 @@ app.use('/api/v1/auth', authRoutes);
 // Protected routes
 app.use('/api/v1/hospitals', hospitalRoutes);
 app.use('/api/v1/claims', claimRoutes);
+app.use('/api/v1/tpas', tpaRoutes);
 
 // Simple route for testing
 app.get("/", (req, res) => {
