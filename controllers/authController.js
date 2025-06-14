@@ -43,6 +43,7 @@ exports.loginOrRegister = async (req, res) => {
           user: {
             id: user.id,
             emailId: user.email,
+            role: user.role, 
           },
           accessToken,
           refreshToken,

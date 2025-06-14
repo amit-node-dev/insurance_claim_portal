@@ -36,6 +36,15 @@ module.exports = (sequelize) => {
       ),
       defaultValue: "Admitted",
     },
+    creatorId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: "Users",
+        key: "id",
+      },
+      onDelete: "RESTRICT",
+    },
     documents: { type: DataTypes.JSON },
     settlementDetails: { type: DataTypes.JSON },
   });

@@ -9,7 +9,7 @@ router.use(verifyToken);
 // Matches EPIC 1 User Stories
 router.post(
   "/",
-  authorize("Admin", "Staff"),
+  authorize("Super Admin", "Admin", "Staff"),
   uploadMiddleware,
   claimController.createClaim
 );
