@@ -9,27 +9,27 @@ const infoLogger = {
 };
 
 const sequelize = new Sequelize(
-  process.env.MYSQL_DATABASE,
-  process.env.MYSQL_USERNAME,
-  process.env.MYSQL_PASSWORD,
+  process.env.MYSQLDATABASE,
+  process.env.MYSQLUSER,
+  process.env.MYSQLPASSWORD,
   {
-    dialect: process.env.MYSQL_DIALECT,
+    dialect: process.env.MYSQLDIALECT,
     logging: (msg) => infoLogger.info("Query ::: " + msg),
     logQueryParameters: true,
     replication: {
       read: [
         {
-          host: process.env.MYSQL_HOST,
-          username: process.env.MYSQL_USERNAME,
-          password: process.env.MYSQL_PASSWORD,
-          port: parseInt(process.env.MYSQL_DBPORT, 10),
+          host: process.env.MYSQLHOST,
+          username: process.env.MYSQLUSER,
+          password: process.env.MYSQLPASSWORD,
+          port: parseInt(process.env.MYSQLPORT, 10),
         },
       ],
       write: {
-        host: process.env.MYSQL_HOST,
-        username: process.env.MYSQL_USERNAME,
-        password: process.env.MYSQL_PASSWORD,
-        port: parseInt(process.env.MYSQL_DBPORT, 10),
+        host: process.env.MYSQLHOST,
+        username: process.env.MYSQLUSER,
+        password: process.env.MYSQLPASSWORD,
+        port: parseInt(process.env.MYSQLPORT, 10),
       },
     },
     pool: {
