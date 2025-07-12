@@ -1,35 +1,26 @@
-const db = require("../models");
-const Hospital = db.Hospital;
+"use strict";
+
+const { Hospital } = require("../models");
 const { Op } = require("sequelize");
 
-// Create a new hospital
+/**
+ * Create a new hospital
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.createHospital = async (req, res) => {
   const { name, address, email, mobile, reference } = req.body;
 
-  // Validation
-  if (!name) {
-    return res.status(400).json({
-      success: false,
-      message: "Hospital name is required.",
-      data: null,
-    });
-  }
-
   try {
-    // Check if hospital name or email already exists
+    // Check if hospital email already exists
     const existingHospital = await Hospital.findOne({
-      where: {
-        [Op.or]: [{ name: name }, email ? { email } : null].filter(Boolean),
-      },
+      where: { email },
     });
 
     if (existingHospital) {
       return res.status(409).json({
         success: false,
-        message:
-          existingHospital.name === name
-            ? "Hospital name already exists."
-            : "Hospital email already exists.",
+        message: "Hospital email already exists.",
         data: null,
       });
     }
@@ -45,9 +36,25 @@ exports.createHospital = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Hospital created successfully.",
-      data: hospital,
+      data: {
+        id: hospital.id,
+        name: hospital.name,
+        address: hospital.address,
+        email: hospital.email,
+        mobile: hospital.mobile,
+        reference: hospital.reference,
+        createdAt: hospital.createdAt,
+        updatedAt: hospital.updatedAt,
+      },
     });
   } catch (error) {
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({
+        success: false,
+        message: `Hospital with ${error.errors[0].path} already exists.`,
+        data: null,
+      });
+    }
     return res.status(500).json({
       success: false,
       message: error.message || "Failed to create hospital.",
@@ -56,17 +63,42 @@ exports.createHospital = async (req, res) => {
   }
 };
 
-// Get all hospitals
+/**
+ * Get all hospitals with optional pagination and filtering
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.getAllHospitals = async (req, res) => {
   try {
-    const hospitals = await Hospital.findAll({
-      attributes: ["id", "name", "address", "email", "mobile", "reference"], 
+    const { page = 1, limit = 10, name } = req.query;
+    const offset = (page - 1) * limit;
+    const where = name ? { name: { [Op.like]: `%${name}%` } } : {};
+
+    const { count, rows } = await Hospital.findAndCountAll({
+      where,
+      attributes: [
+        "id",
+        "name",
+        "address",
+        "email",
+        "mobile",
+        "reference",
+        "createdAt",
+        "updatedAt",
+      ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
 
     return res.status(200).json({
       success: true,
       message: "Hospitals retrieved successfully.",
-      data: hospitals,
+      data: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        hospitals: rows,
+      },
     });
   } catch (error) {
     return res.status(500).json({
@@ -77,13 +109,26 @@ exports.getAllHospitals = async (req, res) => {
   }
 };
 
-// Get hospital by ID
+/**
+ * Get a hospital by ID
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.getHospitalById = async (req, res) => {
   const { id } = req.params;
 
   try {
     const hospital = await Hospital.findByPk(id, {
-      attributes: ["id", "name", "address", "email", "mobile", "reference"],
+      attributes: [
+        "id",
+        "name",
+        "address",
+        "email",
+        "mobile",
+        "reference",
+        "createdAt",
+        "updatedAt",
+      ],
     });
 
     if (!hospital) {
@@ -108,7 +153,11 @@ exports.getHospitalById = async (req, res) => {
   }
 };
 
-// Update a hospital
+/**
+ * Update a hospital
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.updateHospital = async (req, res) => {
   const { id } = req.params;
   const { name, address, email, mobile, reference } = req.body;
@@ -151,7 +200,7 @@ exports.updateHospital = async (req, res) => {
     await hospital.update({
       name: name || hospital.name,
       address: address !== undefined ? address : hospital.address,
-      email: email !== undefined ? email : hospital.email,
+      email: email || hospital.email,
       mobile: mobile !== undefined ? mobile : hospital.mobile,
       reference: reference !== undefined ? reference : hospital.reference,
     });
@@ -159,9 +208,25 @@ exports.updateHospital = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Hospital updated successfully.",
-      data: hospital,
+      data: {
+        id: hospital.id,
+        name: hospital.name,
+        address: hospital.address,
+        email: hospital.email,
+        mobile: hospital.mobile,
+        reference: hospital.reference,
+        createdAt: hospital.createdAt,
+        updatedAt: hospital.updatedAt,
+      },
     });
   } catch (error) {
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({
+        success: false,
+        message: `Hospital with ${error.errors[0].path} already exists.`,
+        data: null,
+      });
+    }
     return res.status(500).json({
       success: false,
       message: error.message || "Failed to update hospital.",
@@ -170,7 +235,11 @@ exports.updateHospital = async (req, res) => {
   }
 };
 
-// Delete a hospital
+/**
+ * Delete a hospital
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.deleteHospital = async (req, res) => {
   const { id } = req.params;
 
@@ -185,14 +254,14 @@ exports.deleteHospital = async (req, res) => {
       });
     }
 
-    // Check if hospital has associated claims (assuming Claim model has hospitalId)
+    // Check if hospital has associated claims
     const associatedClaims = await db.Claim.count({
       where: { hospitalId: id },
     });
     if (associatedClaims > 0) {
       return res.status(400).json({
         success: false,
-        message: "Cannot delete hospital with associated claims.",
+        message: `Cannot delete hospital with ${associatedClaims} associated claim(s).`,
         data: null,
       });
     }

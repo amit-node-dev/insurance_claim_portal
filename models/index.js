@@ -1,48 +1,32 @@
-'use strict';
+"use strict";
 
-const { Sequelize } = require("sequelize");
-require('dotenv').config();
+const Sequelize = require("sequelize");
+const sequelize = require("../core/sequelize/sequelize-config");
 
-const sequelize = new Sequelize(
-  process.env.MYSQLDATABASE,
-  process.env.MYSQLUSER,
-  process.env.MYSQLPASSWORD,
-  {
-    host: process.env.MYSQLHOST || 'localhost',
-    port: process.env.MYSQLPORT || 3306,
-    dialect: process.env.MYSQLDAILET || 'mysql',
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000,
-    },
-  }
-);
+const User = require("./user")(sequelize);
+const Hospital = require("./hospital")(sequelize);
+const Claim = require("./claim")(sequelize);
+const TPA = require("./tpa")(sequelize);
 
-const db = {};
-
-db.Sequelize = Sequelize;
-db.sequelize = sequelize;
-
-// Load models
-db.User = require("./user.js")(sequelize, Sequelize);
-db.Hospital = require("./hospital.js")(sequelize, Sequelize);
-db.Claim = require("./claim.js")(sequelize, Sequelize);
-db.TPA = require("./tpa.js")(sequelize, Sequelize);
-
-// Define Associations
+const db = {
+  User,
+  Hospital,
+  Claim,
+  TPA,
+  sequelize,
+  Sequelize,
+};
 
 // A Claim belongs to one Hospital
-db.Claim.belongsTo(db.Hospital, { foreignKey: "hospitalId" });
-db.Hospital.hasMany(db.Claim, { foreignKey: "hospitalId" });
+Claim.belongsTo(Hospital, { as: "hospital", foreignKey: "hospitalId" });
+Hospital.hasMany(Claim, { as: "hospital", foreignKey: "hospitalId" });
 
 // A Claim is created by a Staff/Admin user
-db.Claim.belongsTo(db.User, { as: "createdBy", foreignKey: "creatorId" });
-db.User.hasMany(db.Claim, { foreignKey: "creatorId" });
+Claim.belongsTo(User, { as: "createdBy", foreignKey: "creatorId" });
+User.hasMany(Claim, { as: "createdBy", foreignKey: "creatorId" });
 
 // A Claim is associated with a TPA
-db.Claim.belongsTo(db.TPA, { foreignKey: "tpaId" });
-db.TPA.hasMany(db.Claim, { foreignKey: "tpaId" });
+Claim.belongsTo(TPA, { as: "tpa", foreignKey: "tpaId" });
+TPA.hasMany(Claim, { as: "tpa", foreignKey: "tpaId" });
 
 module.exports = db;

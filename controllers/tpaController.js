@@ -1,35 +1,26 @@
-const db = require("../models");
-const TPA = db.TPA;
+"use strict";
+
+const { TPA } = require("../models");
 const { Op } = require("sequelize");
 
-// Create a new TPA
+/**
+ * Create a new TPA
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.createTPA = async (req, res) => {
   const { name, address, email } = req.body;
 
-  // Validation
-  if (!name) {
-    return res.status(400).json({
-      success: false,
-      message: "TPA name is required.",
-      data: null,
-    });
-  }
-
   try {
-    // Check if TPA name or email already exists
+    // Check if TPA email already exists
     const existingTPA = await TPA.findOne({
-      where: {
-        [Op.or]: [{ name }, email ? { email } : null].filter(Boolean),
-      },
+      where: { email },
     });
 
     if (existingTPA) {
       return res.status(409).json({
         success: false,
-        message:
-          existingTPA.name === name
-            ? "TPA name already exists."
-            : "TPA email already exists.",
+        message: "TPA email already exists.",
         data: null,
       });
     }
@@ -43,9 +34,24 @@ exports.createTPA = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "TPA created successfully.",
-      data: tpa,
+      data: {
+        id: tpa.id,
+        name: tpa.name,
+        address: tpa.address,
+        email: tpa.email,
+        createdAt: tpa.createdAt,
+        updatedAt: tpa.updatedAt,
+      },
     });
   } catch (error) {
+    if (error.name === "SequelizeValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.errors.map((e) => e.message).join(", "),
+        data: null,
+      });
+    }
+    console.error("Error creating TPA:", error.message);
     return res.status(500).json({
       success: false,
       message: error.message || "Failed to create TPA.",
@@ -54,19 +60,36 @@ exports.createTPA = async (req, res) => {
   }
 };
 
-// Get all TPAs
+/**
+ * Get all TPAs with optional pagination and filtering
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.getAllTPAs = async (req, res) => {
   try {
-    const tpas = await TPA.findAll({
-      attributes: ["id", "name", "address", "email"],
+    const { page = 1, limit = 10, name } = req.query;
+    const offset = (page - 1) * limit;
+    const where = name ? { name: { [Op.like]: `%${name}%` } } : {};
+
+    const { count, rows } = await TPA.findAndCountAll({
+      where,
+      attributes: ["id", "name", "address", "email", "createdAt", "updatedAt"],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
 
     return res.status(200).json({
       success: true,
       message: "TPAs retrieved successfully.",
-      data: tpas,
+      data: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        tpas: rows,
+      },
     });
   } catch (error) {
+    console.error("Error retrieving TPAs:", error.message);
     return res.status(500).json({
       success: false,
       message: error.message || "Failed to retrieve TPAs.",
@@ -75,13 +98,17 @@ exports.getAllTPAs = async (req, res) => {
   }
 };
 
-// Get TPA by ID
+/**
+ * Get a TPA by ID
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.getTPAById = async (req, res) => {
   const { id } = req.params;
 
   try {
     const tpa = await TPA.findByPk(id, {
-      attributes: ["id", "name", "address", "email"],
+      attributes: ["id", "name", "address", "email", "createdAt", "updatedAt"],
     });
 
     if (!tpa) {
@@ -98,6 +125,7 @@ exports.getTPAById = async (req, res) => {
       data: tpa,
     });
   } catch (error) {
+    console.error("Error retrieving TPA:", error.message);
     return res.status(500).json({
       success: false,
       message: error.message || "Failed to retrieve TPA.",
@@ -106,7 +134,11 @@ exports.getTPAById = async (req, res) => {
   }
 };
 
-// Update a TPA
+/**
+ * Update a TPA
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.updateTPA = async (req, res) => {
   const { id } = req.params;
   const { name, address, email } = req.body;
@@ -123,24 +155,15 @@ exports.updateTPA = async (req, res) => {
     }
 
     // Check for conflicts with other TPAs
-    if (name || email) {
+    if (email && email !== tpa.email) {
       const existingTPA = await TPA.findOne({
-        where: {
-          [Op.or]: [
-            name && name !== tpa.name ? { name } : null,
-            email && email !== tpa.email ? { email } : null,
-          ].filter(Boolean),
-          id: { [Op.ne]: id },
-        },
+        where: { email, id: { [Op.ne]: id } },
       });
 
       if (existingTPA) {
         return res.status(409).json({
           success: false,
-          message:
-            existingTPA.name === name
-              ? "TPA name already exists."
-              : "TPA email already exists.",
+          message: "TPA email already exists.",
           data: null,
         });
       }
@@ -149,15 +172,30 @@ exports.updateTPA = async (req, res) => {
     await tpa.update({
       name: name || tpa.name,
       address: address !== undefined ? address : tpa.address,
-      email: email !== undefined ? email : tpa.email,
+      email: email || tpa.email,
     });
 
     return res.status(200).json({
       success: true,
       message: "TPA updated successfully.",
-      data: tpa,
+      data: {
+        id: tpa.id,
+        name: tpa.name,
+        address: tpa.address,
+        email: tpa.email,
+        createdAt: tpa.createdAt,
+        updatedAt: tpa.updatedAt,
+      },
     });
   } catch (error) {
+    if (error.name === "SequelizeValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.errors.map((e) => e.message).join(", "),
+        data: null,
+      });
+    }
+    console.error("Error updating TPA:", error.message);
     return res.status(500).json({
       success: false,
       message: error.message || "Failed to update TPA.",
@@ -166,7 +204,11 @@ exports.updateTPA = async (req, res) => {
   }
 };
 
-// Delete a TPA
+/**
+ * Delete a TPA
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.deleteTPA = async (req, res) => {
   const { id } = req.params;
 
@@ -182,11 +224,13 @@ exports.deleteTPA = async (req, res) => {
     }
 
     // Check if TPA has associated claims
-    const associatedClaims = await db.Claim.count({ where: { tpaId: id } });
+    const associatedClaims = await db.Claim.count({
+      where: { tpaId: id },
+    });
     if (associatedClaims > 0) {
       return res.status(400).json({
         success: false,
-        message: "Cannot delete TPA with associated claims.",
+        message: `Cannot delete TPA with ${associatedClaims} associated claim(s).`,
         data: null,
       });
     }
@@ -199,6 +243,7 @@ exports.deleteTPA = async (req, res) => {
       data: null,
     });
   } catch (error) {
+    console.error("Error deleting TPA:", error.message);
     return res.status(500).json({
       success: false,
       message: error.message || "Failed to delete TPA.",

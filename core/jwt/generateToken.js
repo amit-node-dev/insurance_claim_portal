@@ -1,16 +1,17 @@
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
-const authConfig = require("../../config/authConfig.json");
 
-const generateAccessToken = (id, emailId) => {
-  return jwt.sign({ id, emailId }, authConfig.secret, {
-    expiresIn: authConfig.accessTokenExpiry,
+dotenv.config();
+
+const generateAccessToken = (id, email) => {
+  return jwt.sign({ id, email }, process.env.JWT_SECRET_KEY, {
+    expiresIn: process.env.JWT_EXPIRATION,
   });
 };
 
-const generateRefreshToken = (id, emailId) => {
-  return jwt.sign({ id, emailId }, authConfig.refreshTokenSecret, {
-    expiresIn: authConfig.refreshTokenExpiry,
+const generateRefreshToken = (id, email) => {
+  return jwt.sign({ id, email }, process.env.JWT_REFRESH_SECRET_KEY, {
+    expiresIn: process.env.JWT_REFRESH_EXPIRATION,
   });
 };
 

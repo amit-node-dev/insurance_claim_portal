@@ -18,7 +18,7 @@ exports.loginOrRegister = async (req, res) => {
 
   try {
     // Step 1: Try to find the user by email
-    let user = await User.findOne({ where: { email: email } });
+    let user = await User.findOne({ where: { email } });
 
     // --- SCENARIO A: USER EXISTS (Perform Login) ---
     if (user) {
@@ -32,8 +32,8 @@ exports.loginOrRegister = async (req, res) => {
         });
       }
 
-      const accessToken = generateAccessToken(user.id, user.emailId);
-      const refreshToken = generateRefreshToken(user.id, user.emailId);
+      const accessToken = generateAccessToken(user.id, user.email);
+      const refreshToken = generateRefreshToken(user.id, user.email);
 
       // Return success response with 200 OK status
       return res.status(200).json({
@@ -43,7 +43,7 @@ exports.loginOrRegister = async (req, res) => {
           user: {
             id: user.id,
             emailId: user.email,
-            role: user.role, 
+            role: user.role,
           },
           accessToken,
           refreshToken,

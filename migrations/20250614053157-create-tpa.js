@@ -5,27 +5,26 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable(
-      "Hospitals",
+      "TPAs",
       {
         id: {
           allowNull: false,
           autoIncrement: true,
           primaryKey: true,
           type: Sequelize.INTEGER,
-          comment: "Unique identifier for the hospital",
+          comment: "Unique identifier for the TPA",
         },
         name: {
           type: Sequelize.STRING(255),
           allowNull: false,
-          unique: true,
           validate: {
-            notEmpty: { msg: "Hospital name is required" },
+            notEmpty: { msg: "TPA name is required" },
             len: {
               args: [1, 255],
-              msg: "Hospital name must be between 1 and 255 characters",
+              msg: "TPA name must be between 1 and 255 characters",
             },
           },
-          comment: "Hospital name, must be unique",
+          comment: "TPA name",
         },
         address: {
           type: Sequelize.STRING(500),
@@ -36,7 +35,7 @@ module.exports = {
               msg: "Address must be less than 500 characters",
             },
           },
-          comment: "Hospital address",
+          comment: "TPA address",
         },
         email: {
           type: Sequelize.STRING(255),
@@ -45,23 +44,7 @@ module.exports = {
             isEmail: { msg: "Invalid email format" },
             notEmpty: { msg: "Email is required" },
           },
-          comment: "Hospital contact email",
-        },
-        mobile: {
-          type: Sequelize.STRING(20),
-          allowNull: true,
-          validate: {
-            len: {
-              args: [0, 20],
-              msg: "Mobile number must be less than 20 characters",
-            },
-          },
-          comment: "Hospital contact mobile number",
-        },
-        reference: {
-          type: Sequelize.JSON,
-          allowNull: true,
-          comment: "Additional hospital reference data",
+          comment: "TPA contact email",
         },
         createdAt: {
           allowNull: false,
@@ -79,9 +62,8 @@ module.exports = {
       {
         indexes: [
           {
-            unique: true,
             fields: ["name"],
-            name: "idx_hospitals_name",
+            name: "idx_tpas_name",
           },
         ],
       }
@@ -89,6 +71,6 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable("Hospitals");
+    await queryInterface.dropTable("TPAs");
   },
 };

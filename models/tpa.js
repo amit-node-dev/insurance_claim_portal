@@ -1,12 +1,8 @@
-"use strict";
-const { Model } = require("sequelize");
-module.exports = (sequelize, DataTypes) => {
-  class TPA extends Model {
-    static associate(models) {
-      // define association here
-    }
-  }
-  TPA.init(
+const { DataTypes } = require("sequelize");
+
+module.exports = (sequelize) => {
+  const TPA = sequelize.define(
+    "TPA",
     {
       id: {
         type: DataTypes.INTEGER,
@@ -17,19 +13,43 @@ module.exports = (sequelize, DataTypes) => {
       name: {
         type: DataTypes.STRING,
         allowNull: false,
+        validate: {
+          notEmpty: { msg: "TPA name is required" },
+          len: {
+            args: [1, 255],
+            msg: "TPA name must be between 1 and 255 characters",
+          },
+        },
       },
       address: {
         type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+          len: {
+            args: [0, 500],
+            msg: "Address must be less than 500 characters",
+          },
+        },
       },
       email: {
         type: DataTypes.STRING,
-        validate: { isEmail: true },
+        allowNull: false,
+        validate: {
+          isEmail: { msg: "Invalid email format" },
+          notEmpty: { msg: "Email is required" },
+        },
       },
     },
     {
-      sequelize,
-      modelName: "TPA",
+      tableName: "TPAs",
+      timestamps: true,
+      indexes: [
+        {
+          fields: ["name"],
+        },
+      ],
     }
   );
+
   return TPA;
 };

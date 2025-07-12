@@ -1,51 +1,116 @@
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
-  return sequelize.define("Claim", {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    claimNumber: { type: DataTypes.STRING, unique: true },
-    policyNumber: { type: DataTypes.STRING },
-    patientName: { type: DataTypes.STRING, allowNull: false },
-    admissionDate: { type: DataTypes.DATE, allowNull: false },
-    dischargeDate: { type: DataTypes.DATE },
-    hospitalId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: "Hospitals",
-        key: "id",
+  const Claim = sequelize.define(
+    "Claim",
+    {
+      id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true,
+        allowNull: false,
       },
-      onDelete: "RESTRICT",
-    },
-    tpaId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: "TPAs",
-        key: "id",
+      claimNumber: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
+        validate: {
+          notEmpty: { msg: "Claim number is required" },
+        },
       },
-      onDelete: "RESTRICT",
-    },
-    status: {
-      type: DataTypes.ENUM(
-        "Admitted",
-        "Discharged",
-        "File Submitted",
-        "In Review",
-        "Settled"
-      ),
-      defaultValue: "Admitted",
-    },
-    creatorId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: "Users",
-        key: "id",
+      policyNumber: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+          len: {
+            args: [0, 100],
+            msg: "Policy number must be less than 100 characters",
+          },
+        },
       },
-      onDelete: "RESTRICT",
+      patientName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+          notEmpty: { msg: "Patient name is required" },
+          len: {
+            args: [1, 255],
+            msg: "Patient name must be between 1 and 255 characters",
+          },
+        },
+      },
+      admissionDate: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        validate: {
+          isDate: { msg: "Invalid admission date" },
+        },
+      },
+      dischargeDate: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        validate: {
+          isDate: { msg: "Invalid discharge date" },
+        },
+      },
+      hospitalId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "Hospitals",
+          key: "id",
+        },
+        onDelete: "RESTRICT",
+      },
+      tpaId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "TPAs",
+          key: "id",
+        },
+        onDelete: "RESTRICT",
+      },
+      creatorId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "Users",
+          key: "id",
+        },
+        onDelete: "RESTRICT",
+      },
+      status: {
+        type: DataTypes.ENUM(
+          "Admitted",
+          "Discharged",
+          "File Submitted",
+          "In Review",
+          "Settled"
+        ),
+        allowNull: false,
+        defaultValue: "Admitted",
+      },
+      documents: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
+      settlementDetails: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
     },
-    documents: { type: DataTypes.JSON },
-    settlementDetails: { type: DataTypes.JSON },
-  });
+    {
+      tableName: "Claims",
+      timestamps: true,
+      indexes: [
+        {
+          unique: true,
+          fields: ["claimNumber"],
+        },
+      ],
+    }
+  );
+
+  return Claim;
 };

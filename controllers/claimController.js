@@ -1,34 +1,27 @@
-const db = require("../models");
-const Claim = db.Claim;
-const Hospital = db.Hospital;
-const TPA = db.TPA;
+"use strict";
+
+const { Hospital, TPA, Claim } = require("../models");
+const { Op } = require("sequelize");
 const { v4: uuidv4 } = require("uuid");
 
+/**
+ * Create a new claim
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.createClaim = async (req, res) => {
   const {
     claimNumber,
     patientName,
     admissionDate,
+    dischargeDate,
     policyNumber,
     hospitalId,
     tpaId,
+    settlementDetails,
   } = req.body;
 
-  // Validation for required fields
-  if (
-    !patientName ||
-    !admissionDate ||
-    !policyNumber ||
-    !hospitalId ||
-    !tpaId
-  ) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "Patient name, admission date, policy number, hospital ID, and TPA ID are required.",
-      data: null,
-    });
-  }
+  console.log("Claim creation request body:", req.body);
 
   try {
     // Validate hospitalId
@@ -51,30 +44,47 @@ exports.createClaim = async (req, res) => {
       });
     }
 
-    // Check for duplicate policyNumber
-    const existingClaim = await Claim.findOne({ where: { policyNumber } });
-    if (existingClaim) {
+    // Check for duplicate claimNumber if provided
+    const generatedClaimNumber = claimNumber || `CLM-${uuidv4().slice(0, 8)}`;
+    const existingClaimByNumber = await Claim.findOne({
+      where: { claimNumber: generatedClaimNumber },
+    });
+    if (existingClaimByNumber) {
       return res.status(409).json({
         success: false,
-        message: "Policy number already exists.",
+        message: "Claim number already exists.",
         data: null,
       });
     }
 
-    // Prepare document paths (optional)
+    // Check for duplicate policyNumber if provided
+    if (policyNumber) {
+      const existingClaimPolicyNumber = await Claim.findOne({ where: { policyNumber } });
+      if (existingClaimPolicyNumber) {
+        return res.status(409).json({
+          success: false,
+          message: "Policy number already exists.",
+          data: null,
+        });
+      }
+    }
+
+    // Prepare document paths
     const documentPaths = req.files ? req.files.map((file) => file.path) : [];
 
     // Create claim
     const newClaim = await Claim.create({
-      claimNumber: claimNumber ? claimNumber : uuidv4(),
+      claimNumber: generatedClaimNumber,
       policyNumber,
       patientName,
       admissionDate,
+      dischargeDate,
       hospitalId,
       tpaId,
-      status: "In Review",
       creatorId: req.userId,
+      status: "Admitted", 
       documents: documentPaths,
+      settlementDetails,
     });
 
     return res.status(201).json({
@@ -86,49 +96,163 @@ exports.createClaim = async (req, res) => {
         policyNumber: newClaim.policyNumber,
         patientName: newClaim.patientName,
         admissionDate: newClaim.admissionDate,
+        dischargeDate: newClaim.dischargeDate,
         hospitalId: newClaim.hospitalId,
         tpaId: newClaim.tpaId,
         status: newClaim.status,
         creatorId: newClaim.creatorId,
         documents: newClaim.documents,
+        settlementDetails: newClaim.settlementDetails,
+        createdAt: newClaim.createdAt,
+        updatedAt: newClaim.updatedAt,
       },
     });
   } catch (error) {
+    if (error.name === "SequelizeValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.errors.map((e) => e.message).join(", "),
+        data: null,
+      });
+    }
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({
+        success: false,
+        message: `Claim with ${error.errors[0].path} already exists.`,
+        data: null,
+      });
+    }
+    console.error("Error creating claim:", error.message);
     return res.status(500).json({
       success: false,
-      message: error.message || "Error creating claim.",
+      message: error.message || "Failed to create claim.",
       data: null,
     });
   }
 };
 
+/**
+ * Get all claims with optional pagination and filtering
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+exports.getAllClaims = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, patientName, status } = req.query;
+    const offset = (page - 1) * limit;
+    const where = {};
+    if (patientName) where.patientName = { [Op.like]: `%${patientName}%` };
+    if (status) where.status = status;
+
+    const { count, rows } = await Claim.findAndCountAll({
+      where,
+      attributes: [
+        "id",
+        "claimNumber",
+        "policyNumber",
+        "patientName",
+        "admissionDate",
+        "dischargeDate",
+        "hospitalId",
+        "tpaId",
+        "status",
+        "creatorId",
+        "documents",
+        "settlementDetails",
+        "createdAt",
+        "updatedAt",
+      ],
+      include: [
+        { model: Hospital, attributes: ["id", "name"], as: "hospital" },
+        { model: TPA, attributes: ["id", "name"], as: "tpa" },
+      ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Claims retrieved successfully.",
+      data: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        claims: rows,
+      },
+    });
+  } catch (error) {
+    console.error("Error retrieving claims:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to retrieve claims.",
+      data: null,
+    });
+  }
+};
+
+/**
+ * Get a claim by ID
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+exports.getClaimById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const claim = await Claim.findByPk(id, {
+      attributes: [
+        "id",
+        "claimNumber",
+        "policyNumber",
+        "patientName",
+        "admissionDate",
+        "dischargeDate",
+        "hospitalId",
+        "tpaId",
+        "status",
+        "creatorId",
+        "documents",
+        "settlementDetails",
+        "createdAt",
+        "updatedAt",
+      ],
+      include: [
+        { model: Hospital, attributes: ["id", "name"], as: "hospital" },
+        { model: TPA, attributes: ["id", "name"], as: "tpa" },
+      ],
+    });
+
+    if (!claim) {
+      return res.status(404).json({
+        success: false,
+        message: "Claim not found.",
+        data: null,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Claim retrieved successfully.",
+      data: claim,
+    });
+  } catch (error) {
+    console.error("Error retrieving claim:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to retrieve claim.",
+      data: null,
+    });
+  }
+};
+
+/**
+ * Update claim status
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.updateClaimStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-
-  // Validation
-  if (!status) {
-    return res.status(400).json({
-      success: false,
-      message: "Status is required.",
-      data: null,
-    });
-  }
-
-  const validStatuses = [
-    "Admitted",
-    "Discharged",
-    "File Submitted",
-    "In Review",
-    "Settled",
-  ];
-  if (!validStatuses.includes(status)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid status. Must be one of: ${validStatuses.join(", ")}.`,
-      data: null,
-    });
-  }
 
   try {
     const claim = await Claim.findByPk(id);
@@ -154,14 +278,27 @@ exports.updateClaimStatus = async (req, res) => {
       },
     });
   } catch (error) {
+    if (error.name === "SequelizeValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.errors.map((e) => e.message).join(", "),
+        data: null,
+      });
+    }
+    console.error("Error updating claim status:", error.message);
     return res.status(500).json({
       success: false,
-      message: error.message || "Error updating claim status.",
+      message: error.message || "Failed to update claim status.",
       data: null,
     });
   }
 };
 
+/**
+ * Update claim details
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.updateClaimDetails = async (req, res) => {
   const { id } = req.params;
   const {
@@ -185,7 +322,7 @@ exports.updateClaimDetails = async (req, res) => {
     }
 
     // Validate hospitalId if provided
-    if (hospitalId) {
+    if (hospitalId && hospitalId !== claim.hospitalId) {
       const hospital = await Hospital.findByPk(hospitalId);
       if (!hospital) {
         return res.status(404).json({
@@ -197,7 +334,7 @@ exports.updateClaimDetails = async (req, res) => {
     }
 
     // Validate tpaId if provided
-    if (tpaId) {
+    if (tpaId && tpaId !== claim.tpaId) {
       const tpa = await TPA.findByPk(tpaId);
       if (!tpa) {
         return res.status(404).json({
@@ -222,7 +359,7 @@ exports.updateClaimDetails = async (req, res) => {
       }
     }
 
-    // Prepare document paths (merge new uploads with existing if any)
+    // Prepare document paths (merge new uploads with existing)
     let documentPaths = claim.documents || [];
     if (req.files && req.files.length > 0) {
       const newDocumentPaths = req.files.map((file) => file.path);
@@ -261,13 +398,29 @@ exports.updateClaimDetails = async (req, res) => {
         creatorId: claim.creatorId,
         documents: claim.documents,
         settlementDetails: claim.settlementDetails,
+        createdAt: claim.createdAt,
         updatedAt: claim.updatedAt,
       },
     });
   } catch (error) {
+    if (error.name === "SequelizeValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.errors.map((e) => e.message).join(", "),
+        data: null,
+      });
+    }
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({
+        success: false,
+        message: `Claim with ${error.errors[0].path} already exists.`,
+        data: null,
+      });
+    }
+    console.error("Error updating claim details:", error.message);
     return res.status(500).json({
       success: false,
-      message: error.message || "Error updating claim details.",
+      message: error.message || "Failed to update claim details.",
       data: null,
     });
   }
