@@ -41,15 +41,15 @@ app.get("/", (req, res) => {
 });
 
 // Public routes (no auth needed)
-app.use("/api/v1/public", publicRoutes);
+app.use("/public", publicRoutes);
 
 // Auth routes (login/register)
-app.use("/api/v1/auth", authRoutes);
+app.use("/auth", authRoutes);
 
 // Protected routes
-app.use("/api/v1/hospitals", hospitalRoutes);
-app.use("/api/v1/claims", claimRoutes);
-app.use("/api/v1/tpas", tpaRoutes);
+app.use("/hospitals", hospitalRoutes);
+app.use("/claims", claimRoutes);
+app.use("/tpas", tpaRoutes);
 
 // In app.js, before starting the server
 db.sequelize
